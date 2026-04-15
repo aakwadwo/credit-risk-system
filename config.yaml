@@ -1,0 +1,26 @@
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  validated_dir: data/validated
+  main_file: application_train.csv
+  test_file: application_test.csv
+
+preprocessing:
+  test_size: 0.2
+  random_state: 42
+  target_column: TARGET
+  drop_columns:
+    - SK_ID_CURR
+
+model:
+  random_state: 42
+  cv_folds: 5
+
+mlflow:
+  experiment_name: credit_risk_prediction
+  tracking_uri: mlruns
+
+api:
+  model_name: credit_risk_model
+  host: 0.0.0.0
+  port: 8000

@@ -1,0 +1,173 @@
+# Credit Risk Prediction System
+
+A production-ready machine learning system for predicting loan default probability, built on the Home Credit Default Risk dataset.
+
+## Project Structure
+credit_risk_system/
+├── config.yaml                  # Central configuration
+├── requirements.txt             # Python dependencies
+├── Dockerfile                   # Container definition
+├── src/
+│   ├── config.py                # Config loader
+│   ├── ingestion/ingest.py      # Data loading and summary
+│   ├── preprocessing/
+│   │   ├── validate.py          # Schema validation
+│   │   └── pipeline.py          # Feature engineering pipeline
+│   ├── training/
+│   │   ├── train.py             # Model training
+│   │   └── mlflow_train.py      # MLflow experiment tracking
+│   ├── evaluation/evaluate.py   # Metrics and evaluation
+│   └── monitoring/monitor.py    # Drift detection
+├── api/
+│   ├── main.py                  # FastAPI application
+│   ├── schemas.py               # Pydantic input/output schemas
+│   └── model_loader.py          # Singleton model loader
+├── tests/
+│   ├── test_api.py              # API endpoint tests
+│   └── test_pipeline.py         # Pipeline and model tests
+├── models/                      # Saved models and preprocessor
+├── data/
+│   ├── raw/                     # Raw CSV files
+│   ├── processed/               # Processed datasets
+│   └── validated/               # Validated datasets
+└── mlruns/                      # MLflow experiment tracking data
+
+## Setup
+
+### 1. Clone and create virtual environment
+
+```bash
+git clone <repo-url>
+cd credit_risk_system
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+pip install --upgrade mlflow
+```
+
+### 2. Download the dataset
+
+```bash
+kaggle competitions download -c home-credit-default-risk -p data/raw
+unzip data/raw/home-credit-default-risk.zip -d data/raw/
+```
+
+## Running the Pipeline
+
+### Step 1 — Ingest and inspect data
+
+```bash
+python -m src.ingestion.ingest
+```
+
+### Step 2 — Validate and preprocess
+
+```bash
+python -m src.preprocessing.pipeline
+```
+
+### Step 3 — Train models with MLflow tracking
+
+```bash
+python -m src.training.mlflow_train
+```
+
+### Step 4 — Evaluate models
+
+```bash
+python -m src.evaluation.evaluate
+```
+
+### Step 5 — Run drift monitoring report
+
+```bash
+python -m src.monitoring.monitor
+```
+
+## Starting the API
+
+```bash
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+- API docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+- Prediction endpoint: POST http://localhost:8000/predict
+
+### Example prediction request
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "CODE_GENDER": "M",
+    "DAYS_BIRTH": -12000,
+    "CNT_CHILDREN": 1,
+    "CNT_FAM_MEMBERS": 3.0,
+    "AMT_INCOME_TOTAL": 135000.0,
+    "AMT_CREDIT": 450000.0,
+    "AMT_ANNUITY": 22500.0,
+    "AMT_GOODS_PRICE": 400000.0,
+    "DAYS_EMPLOYED": -2000.0,
+    "NAME_INCOME_TYPE": "Working",
+    "NAME_EDUCATION_TYPE": "Secondary / secondary special",
+    "NAME_FAMILY_STATUS": "Married",
+    "NAME_HOUSING_TYPE": "House / apartment",
+    "NAME_CONTRACT_TYPE": "Cash loans",
+    "AMT_REQ_CREDIT_BUREAU_YEAR": 1.0,
+    "REGION_RATING_CLIENT": 2,
+    "DAYS_LAST_PHONE_CHANGE": -300.0
+  }'
+```
+
+## Running with Docker
+
+```bash
+docker build -t credit-risk-api .
+docker run -p 8000:8000 -v $(pwd)/models:/app/models credit-risk-api
+```
+
+## Running Tests
+
+```bash
+pytest tests/ -v
+```
+
+Expected: 18 passed
+
+## Viewing MLflow UI
+
+```bash
+mlflow ui --backend-store-uri mlruns
+```
+
+Open http://127.0.0.1:5000
+
+## Model Results
+
+| Metric | Logistic Regression | XGBoost |
+|--------|-------------------|---------|
+| AUC-ROC | 0.7467 | 0.7594 |
+| Gini | 0.4933 | 0.5189 |
+| KS Statistic | 0.3637 | 0.3899 |
+| Avg Precision | 0.2285 | 0.2495 |
+| Recall (Default) | 0.6731 | 0.6318 |
+| F1 (Default) | 0.2584 | 0.2818 |
+
+XGBoost is selected as the production model based on superior AUC, Gini, and KS statistic.
+
+## Key Design Decisions
+
+- **Stratified train/test split** preserves the 8.1% default rate in both sets
+- **scale_pos_weight=11.39** handles class imbalance in XGBoost
+- **Median imputation** for numeric features prevents leakage from test set
+- **Preprocessor saved as artifact** guarantees identical transformations at inference
+- **All missing columns filled with NaN at inference** allowing partial inputs
+
+## Limitations
+
+- External tables (bureau, previous applications) not used — would improve AUC
+- Threshold fixed at 0.5 — should be tuned to business cost matrix
+- No feature drift monitoring on input features, only output score drift
+- Model registry uses filesystem backend — production should use database backend
