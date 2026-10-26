@@ -1,6 +1,6 @@
 # Credit Risk Prediction System
 
-A production-ready machine learning system for predicting loan default probability, built on the Home Credit Default Risk dataset.
+An end-to-end machine learning system for predicting loan default probability, built on the Home Credit Default Risk dataset. Individual coursework project.
 
 ## Project Structure
 
@@ -148,6 +148,8 @@ mlflow ui --backend-store-uri mlruns
 Open http://127.0.0.1:5000
 
 ## Model Results
+
+From a local training run on the stratified test split (`random_state: 42`). Trained models and MLflow runs are not committed. Rerun the training steps above to reproduce them.
 
 | Metric | Logistic Regression | XGBoost |
 |--------|-------------------|---------|
